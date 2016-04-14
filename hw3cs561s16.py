@@ -7,11 +7,10 @@ import collections
 
 
 class BNet:
-
     def __init__(self, fname):
         self.net = collections.OrderedDict()
         # self.net = {}
-        self.query = [] # list of tuples
+        self.query = []  # list of tuples
         self.eu = {}
         self.meu = {}
 
@@ -19,13 +18,13 @@ class BNet:
 
         lines = file_handle.readlines()
         file_handle.close()
-        count =0
+        count = 0
 
         evidence = {}
-        input1 ={}
+        input1 = {}
 
         for line in lines:
-            temp_line = line.strip('\n\r')      # simply append query here process later
+            temp_line = line.strip('\n\r')  # simply append query here process later
 
             if temp_line[0:2] == 'P(':
                 self.query.append(temp_line)
@@ -58,7 +57,7 @@ class BNet:
             else:
                 node_info.append(line)
 
-        if len(node_info)!= 0:
+        if len(node_info) != 0:
             self.add_node(node_info)
 
     def add_node(self, node_info):
@@ -72,7 +71,7 @@ class BNet:
                     'children': [],
                     'prob': -9,
                     'condprob': {}
-                    }
+                }
             else:
 
                 self.net[node_info[0].strip()] = {
@@ -80,7 +79,7 @@ class BNet:
                     'children': [],
                     'prob': float(node_info[1]),
                     'condprob': {}
-                    }
+                }
 
         else:
             node_list = node_info[0].split()
@@ -125,7 +124,7 @@ def process_query(q, bnet):
             # print '\nInside Processing |\n'
             # print X_list
 
-            X = X_list[0].strip()   # get name of predicate
+            X = X_list[0].strip()  # get name of predicate
             if X_list[2] == '+':
                 edict[X] = True
             else:
@@ -185,13 +184,13 @@ def process_query(q, bnet):
         input1 = collections.OrderedDict()
         input_X = collections.OrderedDict()
 
-
         print '_______________________________________________________\nEU:', q
+
         match = re.match(r'EU\((.*)\|(.*)\)', q)
         if match:
             cFlag = False
             X_list = match.group(1).strip().split()
-            X = X_list[0].strip()   # get name of predicate
+            X = X_list[0].strip()  # get name of predicate
             if X_list[2] == '+':
                 input_X[X] = True
             else:
@@ -224,7 +223,7 @@ def process_query(q, bnet):
                     input_X[t[0]] = True
                 else:
                     input_X[t[0]] = False
-                # edict = copy.deepcopy(input_X)
+                    # edict = copy.deepcopy(input_X)
         allUtility = []
         for util in bnet['utility']['parents']:
             # print bnet['utility']['parents']
@@ -241,29 +240,6 @@ def process_query(q, bnet):
                     Q = [0, 1]
             allUtility.append(Q)
         print calc_utility(allUtility, bnet['utility']['condprob'])
-
-        # str = q[3:-1]
-        # if " | " in str:
-        #     splitstr = str.split(" | ")
-        #     print splitstr
-        #     tempev = splitstr[1].split(", ")
-        #     print tempev
-        #     a = splitstr[0].index(" = ")
-        #     input1[splitstr[0][:a]] = splitstr[0][a + 3:]
-        #     for y in tempev:
-        #         a = y.index(" = ")
-        #         input1[y[:a]] = y[a + 3:]
-        #     print 'Nishant', input1
-        #     print 'MINE', input_X
-        #
-        # else:
-        #     inp = str.split(", ")
-        #     andflag = True
-        #     for y in inp:
-        #         a = y.index(" = ")
-        #         input1[y[:a]] = y[a + 3:]
-        #     print 'Nishant', input1
-        #     print 'MINE', input_X
 
     elif q[0:4] == 'MEU(':
         print 'MEU:', q
@@ -291,12 +267,7 @@ def calc_utility(allUtility, cond_prob):
 
 
 def normalize(Q):
-
-    return [x * 1/(sum(Q)) for x in Q]
-
-    # s = sum(Q)
-    # for x in Q:
-    #     Q[Q.index(x)] = x/s
+    return [x * 1 / (sum(Q)) for x in Q]
 
 
 def get_vars(bnet, X):
@@ -306,6 +277,7 @@ def get_vars(bnet, X):
             continue
         variables.append(key)
     return variables
+
 
 def enumeration_ask(bnet, X, e, cFlag):
     dist = []
@@ -334,7 +306,7 @@ def enumerate_all(var, e, bnet):
     # print '\n\nInside ALL'
     # print var
     # print e
-    if not var:    # if empty object returned
+    if not var:  # if empty object returned
         return 1.0
     Y = var[0]
     if Y in e:
@@ -361,7 +333,7 @@ def calc_prob(Y, e, bnet):
             prob_result = bnet[Y]['prob']
         else:
             prob_result = 1 - bnet[Y]['prob']
-        # print bnet[Y]['prob']
+            # print bnet[Y]['prob']
     else:
         #   get the value of parents of Y
         par_val = tuple(e[p] for p in bnet[Y]['parents'])
@@ -373,18 +345,6 @@ def calc_prob(Y, e, bnet):
     # print prob_result
     # print 'End PROB\n\n'
     return prob_result
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 def main():
@@ -399,7 +359,8 @@ def main():
         print 'Processing '
         print q
         process_query(q, Network.net)
-    # for k in Network.net
+        # for k in Network.net
+
 
 if __name__ == '__main__':
     #   python hw3cs561s16.py -i sample01.txt
