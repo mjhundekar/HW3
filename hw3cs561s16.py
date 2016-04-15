@@ -4,6 +4,16 @@ import sys
 import copy
 import re
 import collections
+import decimal
+
+
+true_1 = (True, False,)
+true_2 = [(True, True), (True, False), (False, True), (False, False)]
+true_3 = [(True, True, True), (True, True, False),
+          (True, False, True), (True, False, False),
+          (False, True, True), (False, True, False),
+          (False, False, True), (False, False, False)]
+
 
 
 class BNet:
@@ -145,7 +155,12 @@ def process_query(q, bnet):
 
             prob = enumeration_ask(bnet, X, evidence, cFlag)
             print 'prob,', prob
-            return prob
+            if edict[X]:
+                result = prob[0]
+            else:
+                result = prob[1]
+            print 'FINAL RESULT:', result
+            return result
 
         else:
             # result = 1.0
@@ -176,9 +191,17 @@ def process_query(q, bnet):
                     evidence.pop(x)
 
                 prob = enumeration_ask(bnet, x, evidence, cFlag)
+
+                if edict[x]:
+                    result = prob[0]
+                else:
+                    result = prob[1]
+                print 'FINAL RESULT:', result
+
                 break
             print 'prob,', prob
-            return prob
+
+            return result
 
     elif q[0:3] == 'EU(':
         input1 = collections.OrderedDict()
@@ -231,6 +254,9 @@ def process_query(q, bnet):
                 # print util
                 # print bnet[util]['prob']
                 Q = enumeration_ask(bnet, util, input_X, cFlag)
+                print util
+                print input_X
+                print Q
             else:
                 # print util
                 # print bnet[util]['prob']
@@ -243,7 +269,96 @@ def process_query(q, bnet):
 
     elif q[0:4] == 'MEU(':
         print 'MEU:', q
+        input_X = collections.OrderedDict()
+        cFlag = False
+        fin = -9999999999999999.99999
+        match = re.match(r'MEU\((.*)\|(.*)\)', q)
+        if match:
+            cFlag = False
 
+            X_list = match.group(1).strip().split()
+            X = X_list[0].strip()  # get name of predicate
+
+            e = match.group(2).strip().split(',')
+
+            for elem in e:
+                t = elem.split()
+                # print t
+                if t[2] == '+':
+                    input_X[t[0]] = True
+                else:
+                    input_X[t[0]] = False
+
+        else:
+            cFlag = True
+            match = re.match(r'MEU\((.*)\)', q)
+
+            X_list = match.group(1).split(',')
+
+        if len(X_list) == 1:
+            MEU = {}
+
+            for t_val in range(len(true_1)):
+                input_X[X_list[0]] = true_1[t_val]
+                MEU[calc_expected_util(input_X, bnet, cFlag)] = true_1[t_val]
+
+            for i in MEU:
+                if fin < i:
+                    fin = i
+            print MEU
+            # print ' '.join(MEU[fin]), fin
+        elif len(X_list) == 2:
+            MEU = {}
+
+            for t_val in range(len(true_2)):
+                input_X[X_list[0]] = true_2[t_val][0]
+                input_X[X_list[1]] = true_2[t_val][1]
+                MEU[calc_expected_util(input_X, bnet, cFlag)] = true_2[t_val]
+
+            for i in MEU:
+                if fin < i:
+                    fin = i
+            # print ' '.join(MEU[fin]), fin
+            print MEU
+
+        else:
+            MEU = {}
+
+            for t_val in range(len(true_3)):
+                input_X[X_list[0]] = true_3[t_val][0]
+                input_X[X_list[1]] = true_3[t_val][1]
+                input_X[X_list[2]] = true_3[t_val][2]
+                MEU[calc_expected_util(input_X, bnet, cFlag)] = true_3[t_val]
+
+            for i in MEU:
+                if fin < i:
+                    fin = i
+            # print ' '.join(MEU[fin]), fin
+            print MEU
+
+
+
+def calc_expected_util(input_X, bnet, cFlag):
+
+    allUtility = []
+    for util in bnet['utility']['parents']:
+        # print bnet['utility']['parents']
+        if bnet[util]['prob'] != -9:
+            # print util
+            # print bnet[util]['prob']
+            Q = enumeration_ask(bnet, util, input_X, cFlag)
+            print util
+            print input_X
+            print Q
+        else:
+            # print util
+            # print bnet[util]['prob']
+            if input_X[util]:
+                Q = [1, 0]
+            else:
+                Q = [0, 1]
+        allUtility.append(Q)
+    return calc_utility(allUtility, bnet['utility']['condprob'])
 
 def calc_utility(allUtility, cond_prob):
     # print '\n\nINSIDE CALC UTIL'
@@ -360,6 +475,8 @@ def main():
         print q
         process_query(q, Network.net)
         # for k in Network.net
+
+
 
 
 if __name__ == '__main__':
