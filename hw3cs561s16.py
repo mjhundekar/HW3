@@ -6,8 +6,9 @@ import re
 import collections
 import decimal
 
+op_file = open('output.txt', 'w')
 
-true_1 = (True, False,)
+true_1 = (True, False)
 true_2 = [(True, True), (True, False), (False, True), (False, False)]
 true_3 = [(True, True, True), (True, True, False),
           (True, False, True), (True, False, False),
@@ -117,6 +118,21 @@ class BNet:
                 self.net[node_name]['condprob'][truth] = prob
 
 
+def custom_round(prob):
+    rounded = decimal.Decimal(str(prob)).quantize(decimal.Decimal('.01'))
+    return rounded
+
+def write_p(prob):
+
+    final_p = custom_round(prob)
+    op_file.write(str(final_p) + '\n')
+
+def write_e(prob):
+
+    final_p = decimal.Decimal(str(prob)).quantize(decimal.Decimal())
+    op_file.write(str(final_p) + '\n')
+
+
 def process_query(q, bnet):
     # print 'Processing Query: '
     # print q
@@ -140,7 +156,7 @@ def process_query(q, bnet):
             else:
                 edict[X] = False
 
-            e = match.group(2).strip().split(',')
+            e = match.group(2).strip().split(', ')
             for elem in e:
                 t = elem.split()
                 # print t
@@ -157,9 +173,11 @@ def process_query(q, bnet):
             print 'prob,', prob
             if edict[X]:
                 result = prob[0]
+                write_p(result)
             else:
                 result = prob[1]
-            print 'FINAL RESULT:', result
+                write_p(result)
+            # print 'FINAL RESULT:', result
             return result
 
         else:
@@ -168,7 +186,7 @@ def process_query(q, bnet):
             input_X = collections.OrderedDict()
 
             match = re.match(r'P\((.*)\)', q)
-            X_list = match.group(1).split(',')
+            X_list = match.group(1).split(', ')
 
             # print '\nInside Else Processing ,:',
             # print X_list
@@ -194,12 +212,14 @@ def process_query(q, bnet):
 
                 if edict[x]:
                     result = prob[0]
+                    write_p(result)
                 else:
                     result = prob[1]
-                print 'FINAL RESULT:', result
+                    write_p(result)
+                # print 'FINAL RESULT:', result
 
                 break
-            print 'prob,', prob
+            # print 'prob,', prob
 
             return result
 
@@ -219,7 +239,7 @@ def process_query(q, bnet):
             else:
                 input_X[X] = False
 
-            e = match.group(2).strip().split(',')
+            e = match.group(2).strip().split(', ')
 
             for elem in e:
                 t = elem.split()
@@ -233,7 +253,7 @@ def process_query(q, bnet):
             input_X = collections.OrderedDict()
 
             match = re.match(r'EU\((.*)\)', q)
-            X_list = match.group(1).split(',')
+            X_list = match.group(1).split(', ')
 
             # print '\nInside Else Processing ,:',
             # print X_list
@@ -254,9 +274,9 @@ def process_query(q, bnet):
                 # print util
                 # print bnet[util]['prob']
                 Q = enumeration_ask(bnet, util, input_X, cFlag)
-                print util
-                print input_X
-                print Q
+                # print util
+                # print input_X
+                # print Q
             else:
                 # print util
                 # print bnet[util]['prob']
@@ -265,7 +285,11 @@ def process_query(q, bnet):
                 else:
                     Q = [0, 1]
             allUtility.append(Q)
-        print calc_utility(allUtility, bnet['utility']['condprob'])
+        dec_eu = calc_utility(allUtility, bnet['utility']['condprob'])
+        # final_eu = custom_round(dec_eu)
+        write_e(dec_eu)
+        print dec_eu,'\n________________________________________________'
+        return dec_eu
 
     elif q[0:4] == 'MEU(':
         print 'MEU:', q
@@ -279,7 +303,7 @@ def process_query(q, bnet):
             X_list = match.group(1).strip().split()
             X = X_list[0].strip()  # get name of predicate
 
-            e = match.group(2).strip().split(',')
+            e = match.group(2).strip().split(', ')
 
             for elem in e:
                 t = elem.split()
@@ -293,7 +317,7 @@ def process_query(q, bnet):
             cFlag = True
             match = re.match(r'MEU\((.*)\)', q)
 
-            X_list = match.group(1).split(',')
+            X_list = match.group(1).split(', ')
 
         if len(X_list) == 1:
             MEU = {}
@@ -305,8 +329,12 @@ def process_query(q, bnet):
             for i in MEU:
                 if fin < i:
                     fin = i
+
             print MEU
+
             # print ' '.join(MEU[fin]), fin
+            write_m(MEU)
+            return
         elif len(X_list) == 2:
             MEU = {}
 
@@ -320,6 +348,8 @@ def process_query(q, bnet):
                     fin = i
             # print ' '.join(MEU[fin]), fin
             print MEU
+            write_m(MEU)
+            return
 
         else:
             MEU = {}
@@ -335,8 +365,25 @@ def process_query(q, bnet):
                     fin = i
             # print ' '.join(MEU[fin]), fin
             print MEU
+            write_m(MEU)
 
+            return
 
+def write_m(MEU):
+    max_key =  max(MEU.keys())
+    final_m = decimal.Decimal(str(max_key)).quantize(decimal.Decimal())
+    if isinstance(MEU[max_key], bool):
+        temp_str = '+ ' if MEU[max_key] else '- '
+    else:
+        plus_minus = ['+ ' if x else '- ' for x in MEU[max_key]]
+        temp_str = ''.join(map(str, plus_minus))
+
+    op_file.write(str(temp_str) + str(final_m) + '\n')
+    # if MEU[max_key]:
+
+    # else:
+    #     final_m = decimal.Decimal(str(max_key)).quantize(decimal.Decimal())
+    #     op_file.write('- ' + str(final_m) + '\n')
 
 def calc_expected_util(input_X, bnet, cFlag):
 
@@ -347,9 +394,9 @@ def calc_expected_util(input_X, bnet, cFlag):
             # print util
             # print bnet[util]['prob']
             Q = enumeration_ask(bnet, util, input_X, cFlag)
-            print util
-            print input_X
-            print Q
+            # print util
+            # print input_X
+            # print Q
         else:
             # print util
             # print bnet[util]['prob']
@@ -451,6 +498,11 @@ def calc_prob(Y, e, bnet):
             # print bnet[Y]['prob']
     else:
         #   get the value of parents of Y
+        # print bnet[Y]['parents']
+        # print e
+        # for p in bnet[Y]['parents']:
+        #     print p
+        #     print e[p]
         par_val = tuple(e[p] for p in bnet[Y]['parents'])
 
         if e[Y]:
@@ -476,6 +528,19 @@ def main():
         process_query(q, Network.net)
         # for k in Network.net
 
+
+
+    op_file.close()
+
+    f = open('output.txt', 'r')
+
+    lines = f.readlines()
+    f.close()
+    write = open('output.txt', 'w')
+    write.writelines([item for item in lines[:-1]])
+    item = lines[-1].rstrip()
+    write.write(item)
+    write.close()
 
 
 
