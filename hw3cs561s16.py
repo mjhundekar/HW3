@@ -6,6 +6,7 @@ import re
 import collections
 import decimal
 
+decision = []
 op_file = open('output.txt', 'w')
 
 true_1 = (True, False)
@@ -72,15 +73,17 @@ class BNet:
             self.add_node(node_info)
 
     def add_node(self, node_info):
+        global decision
         # print "Adding"
         # print node_info
 
         if len(node_info) == 2:  # single variable
             if node_info[1].strip() == 'decision':
+                decision.append(node_info[0].strip())
                 self.net[node_info[0].strip()] = {
                     'parents': [],
                     'children': [],
-                    'prob': -9,
+                    'prob': 1,
                     'condprob': {}
                 }
             else:
@@ -122,10 +125,12 @@ def custom_round(prob):
     rounded = decimal.Decimal(str(prob)).quantize(decimal.Decimal('.01'))
     return rounded
 
+
 def write_p(prob):
 
     final_p = custom_round(prob)
     op_file.write(str(final_p) + '\n')
+
 
 def write_e(prob):
 
@@ -136,7 +141,8 @@ def write_e(prob):
 def process_query(q, bnet):
     # print 'Processing Query: '
     # print q
-    edict = {}
+    edict = collections.OrderedDict()
+    input_X = collections.OrderedDict()
 
     cFlag = False
     if q[0:2] == 'P(':
@@ -145,16 +151,18 @@ def process_query(q, bnet):
         match = re.match(r'P\((.*)\|(.*)\)', q)
         if match:
             cFlag = False
-            X_list = match.group(1).strip().split()
+            X_list = match.group(1).strip().split(', ')
 
             # print '\nInside Processing |\n'
             # print X_list
 
-            X = X_list[0].strip()  # get name of predicate
-            if X_list[2] == '+':
-                edict[X] = True
-            else:
-                edict[X] = False
+            # X = X_list.strip(', ')
+            for x in X_list:
+                t = x.split()
+                if t[2] == '+':
+                    input_X[t[0]] = True
+                else:
+                    input_X[t[0]] = False
 
             e = match.group(2).strip().split(', ')
             for elem in e:
@@ -164,26 +172,9 @@ def process_query(q, bnet):
                     edict[t[0]] = True
                 else:
                     edict[t[0]] = False
-            # print 'X', X
-            # print edict
-            evidence = copy.deepcopy(edict)
-            # Ask here
-
-            prob = enumeration_ask(bnet, X, evidence, cFlag)
-            print 'prob,', prob
-            if edict[X]:
-                result = prob[0]
-                write_p(result)
-            else:
-                result = prob[1]
-                write_p(result)
-            # print 'FINAL RESULT:', result
-            return result
-
         else:
-            # result = 1.0
             cFlag = True
-            input_X = collections.OrderedDict()
+            # input_X = collections.OrderedDict()
 
             match = re.match(r'P\((.*)\)', q)
             X_list = match.group(1).split(', ')
@@ -200,44 +191,31 @@ def process_query(q, bnet):
                 else:
                     input_X[t[0]] = False
                 edict = copy.deepcopy(input_X)
-                # print 'X:', input_X
-                # print 'E:', edict
+        evidence = copy.deepcopy(edict)
+        prob = get_Prob(input_X, evidence, bnet, cFlag)
 
-            for x in input_X:
-                evidence = copy.deepcopy(edict)
-                if x in evidence:
-                    evidence.pop(x)
-
-                prob = enumeration_ask(bnet, x, evidence, cFlag)
-
-                if edict[x]:
-                    result = prob[0]
-                    write_p(result)
-                else:
-                    result = prob[1]
-                    write_p(result)
-                # print 'FINAL RESULT:', result
-
-                break
-            # print 'prob,', prob
-
-            return result
+        print prob
+        write_p(prob)
+        return prob
 
     elif q[0:3] == 'EU(':
-        input1 = collections.OrderedDict()
         input_X = collections.OrderedDict()
+        edict = collections.OrderedDict()
 
         print '_______________________________________________________\nEU:', q
 
         match = re.match(r'EU\((.*)\|(.*)\)', q)
         if match:
             cFlag = False
-            X_list = match.group(1).strip().split()
-            X = X_list[0].strip()  # get name of predicate
-            if X_list[2] == '+':
-                input_X[X] = True
-            else:
-                input_X[X] = False
+            X_list = match.group(1).strip().split(', ')
+
+            # X = X_list.strip(', ')
+            for x in X_list:
+                t = x.split()
+                if t[2] == '+':
+                    input_X[t[0]] = True
+                else:
+                    input_X[t[0]] = False
 
             e = match.group(2).strip().split(', ')
 
@@ -245,12 +223,13 @@ def process_query(q, bnet):
                 t = elem.split()
                 # print t
                 if t[2] == '+':
+                    edict[t[0]] = True
                     input_X[t[0]] = True
                 else:
+                    edict[t[0]] = False
                     input_X[t[0]] = False
         else:
             cFlag = True
-            input_X = collections.OrderedDict()
 
             match = re.match(r'EU\((.*)\)', q)
             X_list = match.group(1).split(', ')
@@ -267,41 +246,24 @@ def process_query(q, bnet):
                 else:
                     input_X[t[0]] = False
                     # edict = copy.deepcopy(input_X)
-        allUtility = []
-        for util in bnet['utility']['parents']:
-            # print bnet['utility']['parents']
-            if bnet[util]['prob'] != -9:
-                # print util
-                # print bnet[util]['prob']
-                Q = enumeration_ask(bnet, util, input_X, cFlag)
-                # print util
-                # print input_X
-                # print Q
-            else:
-                # print util
-                # print bnet[util]['prob']
-                if input_X[util]:
-                    Q = [1, 0]
-                else:
-                    Q = [0, 1]
-            allUtility.append(Q)
-        dec_eu = calc_utility(allUtility, bnet['utility']['condprob'])
-        # final_eu = custom_round(dec_eu)
-        write_e(dec_eu)
-        print dec_eu,'\n________________________________________________'
-        return dec_eu
+        answer = calc_expected_util(input_X, edict, bnet, cFlag)
+        result = custom_round(answer)
+        print result
+        write_e(result)
+        return answer
 
     elif q[0:4] == 'MEU(':
         print 'MEU:', q
         input_X = collections.OrderedDict()
+        edict = collections.OrderedDict()
         cFlag = False
         fin = -9999999999999999.99999
         match = re.match(r'MEU\((.*)\|(.*)\)', q)
         if match:
             cFlag = False
 
-            X_list = match.group(1).strip().split()
-            X = X_list[0].strip()  # get name of predicate
+            X_list = match.group(1).strip().split(', ')
+            # X = X_list[0].strip()  # get name of predicate
 
             e = match.group(2).strip().split(', ')
 
@@ -309,8 +271,10 @@ def process_query(q, bnet):
                 t = elem.split()
                 # print t
                 if t[2] == '+':
+                    edict[t[0]] = True
                     input_X[t[0]] = True
                 else:
+                    edict[t[0]] = False
                     input_X[t[0]] = False
 
         else:
@@ -320,11 +284,14 @@ def process_query(q, bnet):
             X_list = match.group(1).split(', ')
 
         if len(X_list) == 1:
+
             MEU = {}
 
             for t_val in range(len(true_1)):
                 input_X[X_list[0]] = true_1[t_val]
-                MEU[calc_expected_util(input_X, bnet, cFlag)] = true_1[t_val]
+                print input_X
+                print edict
+                MEU[calc_expected_util(input_X, edict, bnet, cFlag)] = true_1[t_val]
 
             for i in MEU:
                 if fin < i:
@@ -341,7 +308,7 @@ def process_query(q, bnet):
             for t_val in range(len(true_2)):
                 input_X[X_list[0]] = true_2[t_val][0]
                 input_X[X_list[1]] = true_2[t_val][1]
-                MEU[calc_expected_util(input_X, bnet, cFlag)] = true_2[t_val]
+                MEU[calc_expected_util(input_X, edict, bnet, cFlag)] = true_2[t_val]
 
             for i in MEU:
                 if fin < i:
@@ -358,7 +325,7 @@ def process_query(q, bnet):
                 input_X[X_list[0]] = true_3[t_val][0]
                 input_X[X_list[1]] = true_3[t_val][1]
                 input_X[X_list[2]] = true_3[t_val][2]
-                MEU[calc_expected_util(input_X, bnet, cFlag)] = true_3[t_val]
+                MEU[calc_expected_util(input_X, edict, bnet, cFlag)] = true_3[t_val]
 
             for i in MEU:
                 if fin < i:
@@ -370,7 +337,7 @@ def process_query(q, bnet):
             return
 
 def write_m(MEU):
-    max_key =  max(MEU.keys())
+    max_key = max(MEU.keys())
     final_m = decimal.Decimal(str(max_key)).quantize(decimal.Decimal())
     if isinstance(MEU[max_key], bool):
         temp_str = '+ ' if MEU[max_key] else '- '
@@ -385,27 +352,64 @@ def write_m(MEU):
     #     final_m = decimal.Decimal(str(max_key)).quantize(decimal.Decimal())
     #     op_file.write('- ' + str(final_m) + '\n')
 
-def calc_expected_util(input_X, bnet, cFlag):
 
-    allUtility = []
-    for util in bnet['utility']['parents']:
-        # print bnet['utility']['parents']
-        if bnet[util]['prob'] != -9:
-            # print util
-            # print bnet[util]['prob']
-            Q = enumeration_ask(bnet, util, input_X, cFlag)
-            # print util
-            # print input_X
-            # print Q
-        else:
-            # print util
-            # print bnet[util]['prob']
-            if input_X[util]:
-                Q = [1, 0]
+def calc_expected_util(input_X, evidence, bnet, cFlag):
+    truth = '+'
+    util = {"utility": tuple(True if x == '+' else False for x in truth)}
+    # print util
+    numerator = get_Prob(util, input_X, bnet, True)
+    denominator = get_Prob(evidence, {}, bnet, True)
+    return numerator/denominator
+
+
+def get_Prob(input_X, evidence, bnet, cFlag):
+    print 'INSIDE PROB'
+    print input_X
+    print evidence
+    prob = 1
+    if cFlag:
+        for i in input_X:
+            ev = copy.deepcopy(evidence)
+            if i in ev:
+                ev.pop(i)
+            answer = enumeration_ask(bnet, i, ev, cFlag)
+            # if abs(1 - sum(answer)) >= 0.001:
+            if sum(answer) >= 1.001 or sum(answer) < 0.009:
+                answer = normalize(answer)
+            if input_X[i]:
+                prob = answer[0]
             else:
-                Q = [0, 1]
-        allUtility.append(Q)
-    return calc_utility(allUtility, bnet['utility']['condprob'])
+                prob = answer[1]
+            break
+        print 'Result PROB:', prob
+        return prob
+    else:
+        dict_x_y = collections.OrderedDict()
+        for i in input_X:
+            dict_x_y[i] = input_X[i]
+        for i in evidence:
+            dict_x_y[i] = evidence[i]
+
+        for key in dict_x_y:
+            answer_1 = enumeration_ask(bnet, key, dict_x_y, True)
+            if dict_x_y[key]:
+                numerator = answer_1[0]
+            else:
+                numerator = answer_1[1]
+            break
+
+        dict_x = copy.deepcopy(evidence)
+
+        for key in dict_x:
+            answer_2 = enumeration_ask(bnet, key, dict_x, True)
+            if dict_x[key]:
+                denominator = answer_2[0]
+            else:
+                denominator = answer_2[1]
+            break
+        print 'Result PROB Else:', numerator/denominator
+        return numerator/denominator
+
 
 def calc_utility(allUtility, cond_prob):
     # print '\n\nINSIDE CALC UTIL'
@@ -433,11 +437,11 @@ def normalize(Q):
 
 
 def get_vars(bnet, X):
+    global decision
     variables = []
     for key in bnet:
-        if bnet[key]['prob'] == -9 or key == 'utility':
-            continue
-        variables.append(key)
+        if key not in decision:
+            variables.append(key)
     return variables
 
 
@@ -449,10 +453,9 @@ def enumeration_ask(bnet, X, e, cFlag):
     # print e
 
     Q = [0, 0]
+    ev = copy.deepcopy(e)
     for x_val in [True, False]:
-        ev = copy.deepcopy(e)
         if x_val:
-
             ev[X] = x_val
             Q[0] = enumerate_all(get_vars(bnet, X), ev, bnet)
         else:
@@ -483,27 +486,22 @@ def enumerate_all(var, e, bnet):
 
 
 def calc_prob(Y, e, bnet):
-    prob_result = 0.0
-    # print '\n\nCalulating PROB'
-    # print 'Y:', Y
-    # print 'E:', e
-
-    if bnet[Y]['prob'] != -1 and bnet[Y]['prob'] != -9:
+    global decision
+    if bnet[Y]['prob'] != -1:
         # print 'Inside Normal Prob'
         if e[Y]:
-
             prob_result = bnet[Y]['prob']
         else:
             prob_result = 1 - bnet[Y]['prob']
             # print bnet[Y]['prob']
     else:
-        #   get the value of parents of Y
-        # print bnet[Y]['parents']
-        # print e
-        # for p in bnet[Y]['parents']:
-        #     print p
-        #     print e[p]
-        par_val = tuple(e[p] for p in bnet[Y]['parents'])
+        par_val_list = []
+
+        for p in bnet[Y]['parents']:
+            if p in decision and p not in e:
+                return 1
+            par_val_list.append(e[p])
+        par_val = tuple(par_val_list)
 
         if e[Y]:
             prob_result = bnet[Y]['condprob'][par_val]
