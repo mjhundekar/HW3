@@ -194,7 +194,7 @@ def process_query(q, bnet):
         evidence = copy.deepcopy(edict)
         prob = get_Prob(input_X, evidence, bnet, cFlag)
 
-        print prob
+        # print prob
         write_p(prob)
         return prob
 
@@ -202,7 +202,7 @@ def process_query(q, bnet):
         input_X = collections.OrderedDict()
         edict = collections.OrderedDict()
 
-        print '_______________________________________________________\nEU:', q
+        # print '_______________________________________________________\nEU:', q
 
         match = re.match(r'EU\((.*)\|(.*)\)', q)
         if match:
@@ -248,12 +248,12 @@ def process_query(q, bnet):
                     # edict = copy.deepcopy(input_X)
         answer = calc_expected_util(input_X, edict, bnet, cFlag)
         result = custom_round(answer)
-        print result
+        # print result
         write_e(result)
         return answer
 
     elif q[0:4] == 'MEU(':
-        print 'MEU:', q
+        # print 'MEU:', q
         input_X = collections.OrderedDict()
         edict = collections.OrderedDict()
         cFlag = False
@@ -289,25 +289,27 @@ def process_query(q, bnet):
 
             for t_val in range(len(true_1)):
                 input_X[X_list[0]] = true_1[t_val]
-                print input_X
-                print edict
+                # print input_X
+                # print edict
                 MEU[calc_expected_util(input_X, edict, bnet, cFlag)] = true_1[t_val]
 
             for i in MEU:
                 if fin < i:
                     fin = i
 
-            print MEU
+            # print MEU
 
             # print ' '.join(MEU[fin]), fin
             write_m(MEU)
             return
         elif len(X_list) == 2:
             MEU = {}
-
+            # print input_X
+            # print edict
             for t_val in range(len(true_2)):
                 input_X[X_list[0]] = true_2[t_val][0]
                 input_X[X_list[1]] = true_2[t_val][1]
+
                 MEU[calc_expected_util(input_X, edict, bnet, cFlag)] = true_2[t_val]
 
             for i in MEU:
@@ -331,7 +333,7 @@ def process_query(q, bnet):
                 if fin < i:
                     fin = i
             # print ' '.join(MEU[fin]), fin
-            print MEU
+            # print MEU
             write_m(MEU)
 
             return
@@ -344,7 +346,9 @@ def write_m(MEU):
     else:
         plus_minus = ['+ ' if x else '- ' for x in MEU[max_key]]
         temp_str = ''.join(map(str, plus_minus))
-
+    # print final_m
+    if final_m == -0:
+        final_m = 0
     op_file.write(str(temp_str) + str(final_m) + '\n')
     # if MEU[max_key]:
 
@@ -354,18 +358,21 @@ def write_m(MEU):
 
 
 def calc_expected_util(input_X, evidence, bnet, cFlag):
+    global decision
     truth = '+'
     util = {"utility": tuple(True if x == '+' else False for x in truth)}
     # print util
     numerator = get_Prob(util, input_X, bnet, True)
-    denominator = get_Prob(evidence, {}, bnet, True)
+    denominator = get_Prob(evidence, input_X, bnet, True)
+    if set(evidence.keys()) < set(decision):
+        denominator = 1.0
     return numerator/denominator
 
 
 def get_Prob(input_X, evidence, bnet, cFlag):
-    print 'INSIDE PROB'
-    print input_X
-    print evidence
+    # print 'INSIDE PROB'
+    # print input_X
+    # print evidence
     prob = 1
     if cFlag:
         for i in input_X:
@@ -381,7 +388,7 @@ def get_Prob(input_X, evidence, bnet, cFlag):
             else:
                 prob = answer[1]
             break
-        print 'Result PROB:', prob
+        # print 'Result PROB:', prob
         return prob
     else:
         dict_x_y = collections.OrderedDict()
@@ -407,7 +414,7 @@ def get_Prob(input_X, evidence, bnet, cFlag):
             else:
                 denominator = answer_2[1]
             break
-        print 'Result PROB Else:', numerator/denominator
+        # print 'Result PROB Else:', numerator/denominator
         return numerator/denominator
 
 
@@ -515,14 +522,14 @@ def calc_prob(Y, e, bnet):
 def main():
     file_name = sys.argv[2]
     Network = BNet(file_name)
-    print '\n\n FINAL BAYESEAN NET'
-    print Network.net
+    # print '\n\n FINAL BAYESEAN NET'
+    # print Network.net
     # print '_____________________________________________________________________\nQUERIES'
     # print Network.query
 
     for q in Network.query:
-        print 'Processing '
-        print q
+        # print 'Processing '
+        # print q
         process_query(q, Network.net)
         # for k in Network.net
 
